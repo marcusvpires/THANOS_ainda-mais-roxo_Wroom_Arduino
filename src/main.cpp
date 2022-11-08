@@ -1,22 +1,20 @@
 #include <Arduino.h>
 #include <QTRSensors.h>
 
-#include "BluetoothSerial.h"
 #include "constantes.h"
+#include "bluetooth.h"
 
 QTRSensors qtr;
-
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
-BluetoothSerial SerialBT;
 
 const uint8_t SensorCount = QTR_NumeroDeSensores;
 uint16_t sensorValues[SensorCount];
 
+String message = "";
+char incomingChar;
+
 void setup() {
 
+  // configura os sensores QTR
   qtr.setTypeRC();
   qtr.setSensorPins((const uint8_t[]){ 
     RS_1_PIN, RS_2_PIN, RS_3_PIN, RS_4_PIN, RS_5_PIN, RS_6_PIN, RS_7_PIN, RS_8_PIN
@@ -26,26 +24,31 @@ void setup() {
 
   Serial.begin(115200);
 
-  SerialBT.begin("ESP32test"); //Bluetooth device name
-  Serial.println("The device started, now you can pair it with bluetooth!");
+  iniciaBluetooth();
+  pinMode(LED_BUILTIN, OUTPUT);
 
 }
 
 void loop() {
-  qtr.read(sensorValues);
 
-  for (uint8_t i = 0; i < SensorCount; i++)
-  {
-    // Serial.print(sensorValues[i]);
-    // Serial.print('\t');
+  if (SerialBT.available()){
+    char incomingChar = SerialBT.read();
+    if (incomingChar != '\n'){
+      message += String(incomingChar);
+    }
+    else{
+      message = "";
+    }
+    Serial.write(incomingChar);  
   }
-  // Serial.println();
 
-  if (Serial.available()) {
-    SerialBT.write(Serial.read());
+  if (message =="on"){
+    digitalWrite(LED_BUILTIN, HIGH);
+    SerialBT.println("LED ligado"); 
   }
-  if (SerialBT.available()) {
-    Serial.write(SerialBT.read());
+  else if (message =="off"){
+    digitalWrite(LED_BUILTIN, LOW);
+    SerialBT.println("LED desligado"); 
   }
 
   delay(20);
